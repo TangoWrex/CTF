@@ -1,0 +1,102 @@
+Hack The Box Spooky Pass 
+
+https://app.hackthebox.com/challenges/SpookyPass
+
+
+Summary: I learned about Stack Canaries in the proccess of trying to understand the specific sizes being assigned to variables. Upon further investigation I quickly say strcmp function comparing the value from fgets with the password which allowed me to get the flag. 
+
+
+
+
+
+Note - easy locate for ghidra exe
+
+find . -name "ghidraRun" -exec realpath {} \;
+
+
+1) Downloaded the pass exe and ran it. Requests a password after execution, fails if password not correct as expected
+
+2) open in ghidra. 
+
+analysis: 
+
+- I wanted to understand 'in_FS_OFFSET + 0x28 purpose. I identified this CTF is focused on Stack Canaries. 
+
+
+char 1stCompareValue [136];
+
+
+  fgets(1stCompareValue,0x80,stdin);
+  pcVar2 = strchr(1stCompareValue,10);
+  if (pcVar2 != (char *)0x0) {
+    *pcVar2 = '\0';
+  }
+
+Reads the first 127 characters and removes newlines and null terminates the string. 
+
+
+Identified password : s3cr3t_p455_f0r_gh05t5_4nd_gh0ul5 and retrieved flag. 
+
+
+
+3) I wanted to understand the bytes and size being assigned to variable local_10. 
+
+"
+
+long in_FS_OFFSET
+long local_10;  
+local_10 = *(long *)(in_FS_OFFSET + 0x28);
+
+
+4) at this moment I think this CTF is a stack smash / stack canary. [FS_OFFSET + 0x28]
+
+5) Examing the stack canary with GDB
+
+5a) Start GDB and Run the Binary
+"""
+gdb ./binary
+b main   # Set a breakpoint at main
+r        # Run the program
+
+
+stdout:
+(gdb) b *main
+Breakpoint 1 at 0x1189
+
+"""
+
+
+
+5b) Get the FS Segment Base Address
+"""
+info reg fs_base
+
+stdout:
+Breakpoint 1, 0x0000555555555189 in main ()
+(gdb) x/gx $fs:0x28
+A syntax error in expression, near `:0x28'.
+(gdb) info reg fs_base
+fs_base        0x7ffff7fa3740      140737353758528
+"""
+
+fs_base holds the base address of the FS segment.
+The specific offset 0x28 (fs:[0x28]) stores the stack canary.
+Following 'fs_base' the first number is the hex value and the second is the decimal representation of the same value
+
+
+
+5c) Reading the Stack Canary (fs:[0x28])
+
+Now we know the stack canary is fs_base 
+
+
+
+
+
+
+
+
+
+
+
+
